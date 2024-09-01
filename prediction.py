@@ -21,7 +21,7 @@ risk_class_suggestions = {
     3: "Routine maintenance is sufficient. The product is not likely to cause any health problems or injury, so immediate action is not necessary."
 }
 
-df = pd.read_excel(r'C:\Users\91978\Desktop\medical_device_failure_prediction-main\final_cts.xlsx')
+df = pd.read_excel(r'C:\Users\91978\Desktop\projects\medical_device_failure_prediction-main\final_cts.xlsx')
 
 
 df['risk_class'] = df['risk_class'].fillna(df['risk_class'].mode()[0])

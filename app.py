@@ -5,7 +5,7 @@ from prediction import predict_new_data
 app = Flask(__name__)
 
 
-df = pd.read_excel(r'C:\Users\91978\Desktop\medical_device_failure_prediction-main\final_cts.xlsx')
+df = pd.read_excel(r'C:\Users\91978\Desktop\projects\medical_device_failure_prediction-main\final_cts.xlsx')
 
 
 dropdown_options = {
