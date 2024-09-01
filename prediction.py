@@ -23,23 +23,23 @@ risk_class_suggestions = {
 
 df = pd.read_excel(r'C:\Users\91978\Desktop\medical_device_failure_prediction-main\final_cts.xlsx')
 
-# Data Preprocessing
+
 df['risk_class'] = df['risk_class'].fillna(df['risk_class'].mode()[0])
 
-# Drop columns that are not needed for the model
+
 df = df.drop(['id', 'date_posted', 'date_terminated', 'uid', 'device_id', 'manufacturer_id', 
               'action_classification', 'determined_cause', 'type', 'status'], axis=1, errors='ignore')
 
 categorical_cols = df.select_dtypes(include=['object']).columns
 
-# Label encoding for categorical features
+
 encoders = {col: LabelEncoder() for col in categorical_cols}
 for col in categorical_cols:
     df[col] = df[col].fillna('Unknown')
     encoders[col].fit(df[col].unique())
     df[col] = encoders[col].transform(df[col])
 
-# Handle missing values using the most frequent value
+
 imputer = SimpleImputer(strategy='most_frequent')
 
 X = df.drop('risk_class', axis=1)
@@ -47,7 +47,7 @@ y = df['risk_class']
 
 imputer.fit(X)
 
-# Split data into training and testing sets
+#training and testing
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 rf_classifier = RandomForestClassifier(n_estimators=100, random_state=42)
