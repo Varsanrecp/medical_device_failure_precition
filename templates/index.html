@@ -1,0 +1,85 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vigilant-IQ</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+</head>
+<body>
+    <div class="container">
+        <h1> Vigilant-IQ </h1>
+        <form action="{{ url_for('predict') }}" method="POST">
+
+            <!-- Removed fields: action_classification, determined_cause, type, status -->
+
+            <div class="form-group">
+                <label for="classification">Device Type:</label>
+                <select id="classification" name="classification" class="form-control" required>
+                    <option value="" disabled selected>Select Classification</option>
+                    <option value="None">None</option>
+                    {% for item in dropdown_options['classification'] %}
+                        <option value="{{ item }}">{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="code">Code:</label>
+                <select id="code" name="code" class="form-control" required>
+                    <option value="" disabled selected>Select Code</option>
+                    <option value="None">None</option>
+                    {% for item in dropdown_options['code'] %}
+                        <option value="{{ item }}">{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="implanted">Implanted:</label>
+                <select id="implanted" name="implanted" class="form-control" required>
+                    <option value="" disabled selected>Select Implanted Status</option>
+                    {% for item in dropdown_options['implanted'] %}
+                        <option value="{{ item }}">{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="name_device">Name of Device:</label>
+                <select id="name_device" name="name_device" class="form-control">
+                    {% for item in dropdown_options['name_device'] %}
+                        <option value="{{ item }}">{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="name_manufacturer">Name of Manufacturer:</label>
+                <select id="name_manufacturer" name="name_manufacturer" class="form-control">
+                    {% for item in dropdown_options['name_manufacturer'] %}
+                        <option value="{{ item }}">{{ item }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" class="submit-btn">Predict</button>
+        </form>
+    </div>
+
+    <!-- jQuery and Select2 JavaScript -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.form-control').select2({
+                placeholder: "Select an option",
+                allowClear: true
+            });
+        });
+    </script>
+</body>
+</html>

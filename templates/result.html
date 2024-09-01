@@ -1,0 +1,36 @@
+<!-- templates/result.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction Result</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>RESULT</h1>
+        
+        <!-- Prediction Result Box -->
+        <div class="result-box">
+            <h2>Prediction Result</h2>
+            <p>Risk class is {{ predicted_class }}</p>
+        </div>
+
+        <!-- Description Box -->
+        <div class="result-box">
+            <h2>Description</h2>
+            <p>{{ description }}</p>
+        </div>
+
+        <!-- Suggestion Box -->
+        <div class="result-box">
+            <h2>Suggestion</h2>
+            <p>{{ suggestion }}</p>
+        </div>
+
+        <a href="{{ url_for('index') }}" class="back-btn">Go Back</a>
+    </div>
+</body>
+</html>
