@@ -1,44 +1,40 @@
+# app.py
+import os
 from flask import Flask, render_template, request
-import pandas as pd
-from prediction import predict_new_data  
+from prediction import predict_new_data, get_dropdown_options
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates", static_folder="static")
 
+# load dropdown options (this will try to read saved dropdowns from models/, or fallback to the xlsx)
+dropdown_options = get_dropdown_options()
 
-df = pd.read_excel(r'C:\Users\91978\Desktop\projects\medical_device_failure_prediction-main\final_cts.xlsx')
-
-
-dropdown_options = {
-    'classification': sorted(df['classification'].dropna().unique().tolist()),
-    'code': sorted(df['code'].dropna().unique().tolist()),
-    'implanted': sorted(df['implanted'].fillna('None').unique().tolist()),
-    'name_device': sorted(df['name_device'].fillna('None').unique().tolist()),
-    'name_manufacturer': sorted(df['name_manufacturer'].fillna('None').unique().tolist()),
-}
-
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('index.html', dropdown_options=dropdown_options)
+    return render_template("index.html", dropdown_options=dropdown_options)
 
-@app.route('/predict', methods=['POST'])
+@app.route("/predict", methods=["POST"])
 def predict():
-
+    # collect form fields (use 'Unknown' as default so prediction code can map it)
     form_data = {
-        'classification': request.form.get('classification'),
-        'code': request.form.get('code'),
-        'implanted': request.form.get('implanted'),
-        'name_device': request.form.get('name_device'),
-        'name_manufacturer': request.form.get('name_manufacturer'),
+        "classification": request.form.get("classification") or "Unknown",
+        "code": request.form.get("code") or "Unknown",
+        "implanted": request.form.get("implanted") or "Unknown",
+        "name_device": request.form.get("name_device") or "Unknown",
+        "name_manufacturer": request.form.get("name_manufacturer") or "Unknown",
     }
 
+    predicted_class, description, suggestion = predict_new_data(form_data)
 
-    new_data = pd.DataFrame([form_data])
-    
+    return render_template(
+        "result.html",
+        predicted_class=predicted_class,
+        description=description,
+        suggestion=suggestion,
+    )
 
-    prediction_result = predict_new_data(new_data)
-    predicted_class, description, suggestion = prediction_result  # Assuming predict_new_data returns a tuple
 
-    return render_template('result.html', predicted_class=predicted_class, description=description, suggestion=suggestion)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    debug_flag = os.environ.get("FLASK_DEBUG", "0") == "1"
+    # Bind to 0.0.0.0 so deployment services (Render, Railway) can route to it
+    app.run(host="0.0.0.0", port=port, debug=debug_flag)

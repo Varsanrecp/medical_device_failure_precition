@@ -1,94 +1,129 @@
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from sklearn.preprocessing import LabelEncoder
-from sklearn.impute import SimpleImputer
+# prediction.py
+import os
+import joblib
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+import pandas as pd
 
-# Dictionaries with risk class information
+base_dir = os.path.dirname(os.path.abspath(__file__))
+models_dir = os.path.join(base_dir, "models")
+model_path = os.path.join(models_dir, "model.joblib")
+mappings_path = os.path.join(models_dir, "mappings.joblib")
+imputer_path = os.path.join(models_dir, "imputer.joblib")
+features_path = os.path.join(models_dir, "features.joblib")
+dropdown_path = os.path.join(models_dir, "dropdown_options.joblib")
+
+# Risk class dictionaries copied from your code
 risk_class_descriptions = {
     1: "A situation where there is a reasonable chance that a product will cause serious health problems or death.",
     2: "A situation where a product may cause a temporary or reversible health problem or where there is a slight chance that it will cause serious health problems or death.",
-    3: "A situation where a product is not likely to cause any health problem or injury."
+    3: "A situation where a product is not likely to cause any health problem or injury.",
 }
 
 risk_class_suggestions = {
     1: "Immediate action is required to address the issue. Consider recalling the product or performing urgent maintenance to prevent serious outcomes.",
     2: "Monitor the situation closely and schedule maintenance to address potential issues. A temporary or reversible health problem may occur, but serious risks are low.",
-    3: "Routine maintenance is sufficient. The product is not likely to cause any health problems or injury, so immediate action is not necessary."
+    3: "Routine maintenance is sufficient. The product is not likely to cause any health problems or injury, so immediate action is not necessary.",
 }
 
-df = pd.read_excel(r'C:\Users\91978\Desktop\projects\medical_device_failure_prediction-main\final_cts.xlsx')
+def ensure_artifacts():
+    """
+    Ensure model and artifacts exist. If not, call train_model.train_and_save() to create them.
+    Returns loaded model, mappings, imputer, features, dropdown_options
+    """
+    if not os.path.exists(model_path):
+        # attempt to train if artifacts missing
+        try:
+            from train_model import train_and_save
+            print("Model artifacts not found — training model now (this may take a while)...")
+            train_and_save()
+        except Exception as e:
+            raise RuntimeError("Model artifacts missing and automatic training failed: " + str(e))
+
+    # load artifacts
+    model = joblib.load(model_path)
+    mappings = joblib.load(mappings_path)
+    imputer = joblib.load(imputer_path)
+    features = joblib.load(features_path)
+
+    if os.path.exists(dropdown_path):
+        dropdown_options = joblib.load(dropdown_path)
+    else:
+        # fallback: try to read excel
+        excel_path = os.path.join(base_dir, "final_cts.xlsx")
+        if os.path.exists(excel_path):
+            df = pd.read_excel(excel_path)
+            dropdown_options = {
+                "classification": sorted(df["classification"].dropna().unique().tolist()) if "classification" in df.columns else [],
+                "code": sorted(df["code"].dropna().unique().tolist()) if "code" in df.columns else [],
+                "implanted": sorted(df["implanted"].fillna("None").unique().tolist()) if "implanted" in df.columns else [],
+                "name_device": sorted(df["name_device"].fillna("None").unique().tolist()) if "name_device" in df.columns else [],
+                "name_manufacturer": sorted(df["name_manufacturer"].fillna("None").unique().tolist()) if "name_manufacturer" in df.columns else [],
+            }
+            try:
+                joblib.dump(dropdown_options, dropdown_path)
+            except Exception:
+                pass
+        else:
+            dropdown_options = {
+                "classification": [],
+                "code": [],
+                "implanted": [],
+                "name_device": [],
+                "name_manufacturer": [],
+            }
+
+    return model, mappings, imputer, features, dropdown_options
 
 
-df['risk_class'] = df['risk_class'].fillna(df['risk_class'].mode()[0])
+_model, _mappings, _imputer, _features, _dropdown_options = ensure_artifacts()
 
 
-df = df.drop(['id', 'date_posted', 'date_terminated', 'uid', 'device_id', 'manufacturer_id', 
-              'action_classification', 'determined_cause', 'type', 'status'], axis=1, errors='ignore')
-
-categorical_cols = df.select_dtypes(include=['object']).columns
-
-
-encoders = {col: LabelEncoder() for col in categorical_cols}
-for col in categorical_cols:
-    df[col] = df[col].fillna('Unknown')
-    encoders[col].fit(df[col].unique())
-    df[col] = encoders[col].transform(df[col])
+def get_dropdown_options():
+    """Return the saved dropdown options (used by app.py)."""
+    return _dropdown_options
 
 
-imputer = SimpleImputer(strategy='most_frequent')
-
-X = df.drop('risk_class', axis=1)
-y = df['risk_class']
-
-imputer.fit(X)
-
-#training and testing
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-rf_classifier = RandomForestClassifier(n_estimators=100, random_state=42)
-rf_classifier.fit(X_train, y_train)
-
-y_pred = rf_classifier.predict(X_test)
-
-accuracy = accuracy_score(y_test, y_pred)
-print(f'Accuracy: {accuracy}')
-print(classification_report(y_test, y_pred))
-
-conf_matrix = confusion_matrix(y_test, y_pred)
-# plt.figure(figsize=(8, 6))
-# sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', cbar=False)
-# plt.title('Confusion Matrix')
-# plt.xlabel('Predicted Label')
-# plt.ylabel('True Label')
-# plt.show()
-
-def predict_new_data(new_data, confidence_threshold=0.6):
+def predict_new_data(new_data):
+    """
+    Accepts either a dict (single sample) or a pandas DataFrame with 1 row.
+    Returns: (predicted_class, description, suggestion)
+    """
     try:
-        current_categorical_cols = [col for col in categorical_cols if col in new_data.columns]
-        
-        for col in current_categorical_cols:
-            new_data[col] = new_data[col].fillna('Unknown')
-            unseen_labels = set(new_data[col].unique()) - set(encoders[col].classes_)
-            if unseen_labels:
-                new_labels = list(encoders[col].classes_) + list(unseen_labels)
-                encoders[col].classes_ = np.array(new_labels)
-            new_data[col] = encoders[col].transform(new_data[col])
+        # normalize input to DataFrame
+        if isinstance(new_data, dict):
+            df_in = pd.DataFrame([new_data])
+        else:
+            df_in = new_data.copy()
 
-        new_data = pd.DataFrame(imputer.transform(new_data), columns=X.columns)
+        # Ensure all expected feature columns are present
+        for col in _features:
+            if col not in df_in.columns:
+                df_in[col] = "Unknown"
 
-        probabilities = rf_classifier.predict_proba(new_data)[0]
-        predicted_class = rf_classifier.classes_[np.argmax(probabilities)]
-        max_probability = np.max(probabilities)
+        # Keep only expected columns in the right order
+        X_raw = df_in[_features].astype(str).fillna("Unknown")
 
-        description = risk_class_descriptions[predicted_class]
-        suggestion = risk_class_suggestions[predicted_class]
+        # Map categories -> ints using saved mappings. Unknown/unseen values map to the 'Unknown' index if present, otherwise 0.
+        X_enc = pd.DataFrame()
+        for col in _features:
+            mapping = _mappings.get(col, {})
+            unknown_idx = mapping.get("Unknown", 0)
+            X_enc[col] = X_raw[col].map(lambda v: mapping.get(v, unknown_idx)).astype(float)
+
+        # Impute (saved imputer expects same columns)
+        X_final = pd.DataFrame(_imputer.transform(X_enc), columns=X_enc.columns)
+
+        # Predict
+        probs = _model.predict_proba(X_final)[0]
+        classes = _model.classes_
+        idx = int(np.argmax(probs))
+        predicted_class = int(classes[idx]) if hasattr(classes[idx], "__int__") else classes[idx]
+        # For user display we return description and suggestion from dictionaries
+        description = risk_class_descriptions.get(predicted_class, "")
+        suggestion = risk_class_suggestions.get(predicted_class, "")
 
         return predicted_class, description, suggestion
 
     except Exception as e:
+        # return a useful error tuple that your app can show
         return f"Error in prediction: {str(e)}", "", ""
